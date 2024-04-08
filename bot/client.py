@@ -12,7 +12,8 @@ def create_exam(fullname, group, uuid=None):
     if request.status_code == 201:
         response = json.loads(request.content)
         return response
-
+    elif request.status_code == 404:
+        return "NotFound"
     return {}
 
 
@@ -26,6 +27,16 @@ def submit_exam(answers, exam_uuid):
     else:
         print(request.content)
         return {}
+
+
+def fetch_quiz(quiz_uuid):
+    url = f"{TEST_URL}/api/quiz/detail/{quiz_uuid}/"
+    request = requests.get(url)
+    if request.status_code == 200:
+        response = json.loads(request.content)
+        return response
+
+    return {}
 
 
 if __name__ == "__main__":

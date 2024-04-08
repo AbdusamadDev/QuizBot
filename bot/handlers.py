@@ -7,7 +7,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.utils import executor
 
-from client import create_exam, submit_exam
+from client import create_exam, submit_exam, fetch_quiz
 from conf import TOKEN
 
 
@@ -34,10 +34,17 @@ async def create_exam_and_fetch_questions(fullname, group, uuid):
 @dp.message_handler(commands=["start"], state="*")
 async def start(message: types.Message, state: FSMContext):
     query_params = message.get_args()
-    await state.update_data(query_params=query_params)  # Store query param in state
-    await message.answer(f"Welcome to the Quiz Bot! Query parameters: {query_params}")
-    await message.answer("Please provide your fullname:")
-    await ExamStates.FULLNAME.set()
+    if fetch_quiz(query_params) != {}:
+        await state.update_data(query_params=query_params)  # Store query param in state
+        await message.answer(
+            f"Welcome to the Quiz Bot! Query parameters: {query_params}"
+        )
+        await message.answer("Please provide your fullname:")
+        await ExamStates.FULLNAME.set()
+    else:
+        await message.answer("Quiz not found!")
+        await state.finish()
+        return
 
 
 @dp.message_handler(state=ExamStates.FULLNAME)
@@ -130,13 +137,14 @@ async def process_answer(callback_query: types.CallbackQuery, state: FSMContext)
     await ask_question(callback_query.message, state)
 
 
-async def send_results(message: types.Message, answers, exam_uuid):
+async def send_results(message: types.Message, answers, exam_uuid, state: FSMContext):
     result_message = f"Here is an Exam UUID: {exam_uuid}:\n\n"
     response = submit_exam(answers=answers, exam_uuid=exam_uuid)
     logging.info(f"Answers: {answers}\n\n\n")
     print(response)
     result_message += f"this is your result: {response.get('score')}"
     await message.answer(result_message)
+    await state.finish()
 
 
 if __name__ == "__main__":
