@@ -24,8 +24,8 @@ class ExamStates(StatesGroup):
 
 
 # Function to create exam and fetch questions
-async def create_exam_and_fetch_questions(fullname, group, state):
-    exam_data = create_exam(fullname, group)
+async def create_exam_and_fetch_questions(fullname, group, uuid):
+    exam_data = create_exam(fullname, group, uuid=uuid)
     exam_questions = exam_data.get("questions", [])
     exam_uuid = exam_data.get("uuid", "")
     return exam_questions, exam_uuid
@@ -33,7 +33,10 @@ async def create_exam_and_fetch_questions(fullname, group, state):
 
 @dp.message_handler(commands=["start"], state="*")
 async def start(message: types.Message, state: FSMContext):
-    await message.answer("Welcome to the Quiz Bot! Please provide your fullname:")
+    query_params = message.get_args()
+    await state.update_data(query_params=query_params)  # Store query param in state
+    await message.answer(f"Welcome to the Quiz Bot! Query parameters: {query_params}")
+    await message.answer("Please provide your fullname:")
     await ExamStates.FULLNAME.set()
 
 
@@ -49,8 +52,9 @@ async def process_fullname(message: types.Message, state: FSMContext):
 async def process_group(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["group"] = message.text
+    uuid = data.get("query_params")
     exam_questions, exam_uuid = await create_exam_and_fetch_questions(
-        data["fullname"], data["group"], state
+        data["fullname"], data["group"], uuid
     )
     async with state.proxy() as data:
         data["exam_questions"] = exam_questions
@@ -128,7 +132,6 @@ async def process_answer(callback_query: types.CallbackQuery, state: FSMContext)
 
 async def send_results(message: types.Message, answers, exam_uuid):
     result_message = f"Here is an Exam UUID: {exam_uuid}:\n\n"
-    await message.answer("🔄 Please wait for your exam result a while!")
     response = submit_exam(answers=answers, exam_uuid=exam_uuid)
     logging.info(f"Answers: {answers}\n\n\n")
     print(response)
