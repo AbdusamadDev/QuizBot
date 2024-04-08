@@ -105,7 +105,7 @@ async def ask_question(message: types.Message, state: FSMContext):
         )
         markup.add(types.InlineKeyboardButton(text=option, callback_data=callback_data))
 
-    await message.reply(question, reply_markup=markup)
+    await message.answer(question, reply_markup=markup)
 
 
 @dp.callback_query_handler(state=ExamStates.EXAM)
@@ -119,11 +119,16 @@ async def process_answer(callback_query: types.CallbackQuery, state: FSMContext)
         answers.append({"qid": question_id, "ans": selected_option_index + 1})
         data["answers"] = answers
 
+        # Delete the previous question
+        await bot.delete_message(
+            callback_query.message.chat.id, callback_query.message.message_id
+        )
     await ask_question(callback_query.message, state)
 
 
 async def send_results(message: types.Message, answers, exam_uuid):
     result_message = f"Here is an Exam UUID: {exam_uuid}:\n\n"
+    await message.answer("🔄 Please wait for your exam result a while!")
     response = submit_exam(answers=answers, exam_uuid=exam_uuid)
     logging.info(f"Answers: {answers}\n\n\n")
     print(response)
